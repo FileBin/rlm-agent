@@ -8,24 +8,29 @@
 - Модель субагентов: `deepseek-flash` (pinned через `delegation.model` в `~/.hermes/config.yaml`).
 - Субагент **не коммитит**: возвращает файлы + команду проверки. Родитель проверяет (`go test` / `nix eval`) и коммитит одним мелким коммитом.
 - Откат = удалить последний коммит: `git reset --hard HEAD~1`.
-- Один субагент = одна изолированная единица работы (несколько файлов по одной теме).
 - **`nn.home` под нагрузкой**: субагенты НЕ шлют реальные запросы к vLLM; тесты — только на `httptest`-фейке.
 
-## Состав и порядок
+## Готово
 
-| # | Субагент | Задача | Артефакты | Проверка | Статус |
-|---|---|---|---|---|---|
-| 1 | `go-core` | Стейт-машина, `user_questions.json`, бюджет ретраев | `internal/state`, `internal/questions`, `internal/budget` | `go test ./...` | ✅ |
-| 2 | `go-exec` | Runner (`nixos-container`+`runuser`) + канальный логгер | `internal/exec`, `internal/log` | `go test ./...` | ✅ |
-| 3 | `container` | `flake.nix` + `containers.<name>`: 3 UID, POSIX, `privateNetwork` | `flake.nix`, `nix/containers/*.nix` | `nix eval .#…` | ✅ |
-| 4 | `prompts` | Системные промпты Planner/Dev/QA + шаблон заметок | `prompts/*.md` | ревью | ✅ |
-| 5 | `llm-client` | OpenAI-совместимый клиент: vLLM + DeepSeek, structured output | `internal/llm/*` | `go test ./...` (httptest) | ⬜ |
-| 6 | `orchestrator` | Оркестрационный цикл (mock-LLMClient) | `internal/orchestrator/*`, `cmd/` | `go test ./...` | ⬜ |
-| 7 | `memory` | Перенос паттернов в knowledge_base + агрегация ошибок | `internal/memory/*` | `go test` | ⬜ |
-| 8 | `tests` | Синтетика, стресс зацикливания, боевая `mkWineApp` | `tests/*` | `nix flake check` (нужен деплой + инференс) | ⬜ |
+| Пакет | Что делает | Проверка |
+|---|---|---|
+| `internal/state` | конечный автомат задачи (Request→Planning→DevQA→Review→Success/Pause) | `go test` |
+| `internal/budget` | убывающий бюджет ретраев | `go test` |
+| `internal/questions` | `user_questions.json` read/write | `go test` |
+| `internal/exec` | runner: `nixos-container run … runuser -u role` | `go test` |
+| `internal/log` | канальный логгер (одна горутина-писатель) | `go test` |
+| `internal/llm` | OpenAI-совместимый клиент (vLLM + DeepSeek) | `go test` (httptest) |
+| `internal/response` | парсер структурированного ответа + JSON-schema | `go test` |
+| `internal/orchestrator` | жизненный цикл: пауза, бюджет, обзор | `go test` (фейки) |
+| `internal/agent` | адаптер LLM-клиент → агент (промпт + `response_format`) | `go test` (httptest) |
+| `nix/containers/factory.nix` | nixos-container: 3 UID, POSIX, `privateNetwork` | `nix eval` |
+| `prompts/*.md` | системные промпты planner/developer/tester + шаблон | ревью |
 
-## Порядок запуска
+## Осталось
 
-`llm-client` → `orchestrator` → `memory` → `tests`.
-
-`go-core`/`go-exec`/`container`/`prompts` готовы. `llm-client` и `orchestrator` проверяются локально (httptest + mock) без нагрузки на `nn.home`. `tests` требует деплоя контейнера (root) и свободного `nn.home`.
+| Субагент | Задача | Блокер |
+|---|---|---|
+| `executor` | конкретный Executor (ApplyFiles/RunCommands в контейнер) | нет (тест на построение argv) |
+| `cli` | `cmd/orchestrator/main.go`: конфиг (бэкенд/model/key), чтение промптов, пауза-цикл | нет |
+| `memory` | перенос паттернов в knowledge_base + агрегация ошибок `flake check` | нет |
+| `tests` | синтетика, стресс зацикливания, боевая `mkWineApp` | деплой контейнера (root) + свободный `nn.home` + DeepSeek API key |
