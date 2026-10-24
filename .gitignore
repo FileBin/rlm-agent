@@ -1,0 +1,21 @@
+# Go
+bin/
+*.test
+*.out
+coverage.*
+
+# Nix
+result
+result-*
+.direnv/
+.pre-commit-config.yaml
+
+# Editor / OS
+*.swp
+*.swo
+.DS_Store
+.idea/
+.vscode/
+
+# Hermes scratch
+*.tmp
