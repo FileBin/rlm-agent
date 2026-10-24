@@ -66,13 +66,14 @@ func TestChatSendsRequestFields(t *testing.T) {
 	srv, rec := newServer(t, http.StatusOK, okResponse)
 	c := New(srv.URL+"/v1", "")
 
+	temp := 0.2
 	_, err := c.Chat(context.Background(), ChatRequest{
 		Model: "qwen3-32b",
 		Messages: []Message{
 			{Role: "system", Content: "be terse"},
 			{Role: "user", Content: "say hi"},
 		},
-		Temperature: 0.2,
+		Temperature: &temp,
 		MaxTokens:   128,
 		ResponseFormat: &ResponseFormat{
 			Type:       "json_schema",

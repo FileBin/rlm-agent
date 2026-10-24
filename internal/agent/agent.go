@@ -23,6 +23,11 @@ import (
 // ErrUnknownRole means Run was asked for a role that has no system prompt.
 var ErrUnknownRole = errors.New("agent: unknown role")
 
+// zeroTemp is the temperature the agent requests so retries replay
+// deterministically. A pointer makes the zero value serialize explicitly
+// (float64 with omitempty would drop it and the server default would apply).
+var zeroTemp = 0.0
+
 // Agent is one role of the orchestrator.
 //
 // client and model are fixed for the lifetime of the agent: a role is tied to
@@ -74,7 +79,7 @@ func (a *Agent) Run(ctx context.Context, role, prompt string) (*response.Respons
 		},
 		// Deterministic output: the orchestrator replays prompts on retry and
 		// must not get a different plan each time.
-		Temperature:    0,
+		Temperature:    &zeroTemp,
 		ResponseFormat: a.responseFormat(role),
 	}
 
